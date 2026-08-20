@@ -160,6 +160,14 @@ def _port_is_free(host: str, port: int) -> bool:
         return probe.connect_ex((host, port)) != 0
 
 
+def _first_free_port(host: str, start: int, span: int = 20) -> int | None:
+    """First free port at or after ``start``, or None if the whole span is taken."""
+    for port in range(start, start + span):
+        if _port_is_free(host, port):
+            return port
+    return None
+
+
 def _open_when_ready(host: str, port: int, url: str, timeout: float = 30.0) -> None:
     """Open the browser only once the server actually accepts connections.
 
@@ -180,20 +188,31 @@ def _open_when_ready(host: str, port: int, url: str, timeout: float = 30.0) -> N
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="Local web UI for the YouTube Agent Engine.")
-    parser.add_argument("--port", type=int, default=8000)
+    parser.add_argument("--port", type=int, default=None,
+                        help="Port to serve on. Default: first free port from 8000.")
     parser.add_argument("--host", default="127.0.0.1", help="Default 127.0.0.1 (local only).")
     parser.add_argument("--demo", action="store_true", help="Serve a canned analysis; no key or network needed.")
     parser.add_argument("--no-browser", action="store_true", help="Do not open a browser window.")
     args = parser.parse_args()
 
     app.state.demo = args.demo
-    url = f"http://{args.host}:{args.port}"
 
-    if not _port_is_free(args.host, args.port):
+    if args.port is None:
+        # Nothing was pinned, so step past anything already squatting on 8000
+        # rather than failing and making the user pick a number.
+        port = _first_free_port(args.host, 8000)
+        if port is None:
+            print("\n  ! Ports 8000-8019 are all in use. Free one, or pass --port <n>.\n")
+            return 1
+        if port != 8000:
+            print(f"\n  Port 8000 was busy; using {port} instead.")
+        args.port = port
+    elif not _port_is_free(args.host, args.port):
         print(f"\n  ! Port {args.port} is already in use.")
-        print(f"    Something else is listening there — possibly an earlier copy of this server.")
-        print(f"    Close it, or start on another port:  python app.py --port {args.port + 1}\n")
+        print(f"    Close whatever is using it, or pick another:  python app.py --port {args.port + 1}\n")
         return 1
+
+    url = f"http://{args.host}:{args.port}"
 
     print(f"\n  YouTube Agent Engine{'  [demo mode]' if args.demo else ''}")
     print(f"  Open:  {url}")

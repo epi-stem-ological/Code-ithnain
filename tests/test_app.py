@@ -179,3 +179,29 @@ def test_browser_open_gives_up_rather_than_hanging(monkeypatch, capsys):
     web._open_when_ready("127.0.0.1", port, "http://x", timeout=1.0)
     assert opened == []
     assert "did not come up" in capsys.readouterr().out
+
+
+def test_first_free_port_steps_past_occupied_ones():
+    with socket.socket() as a, socket.socket() as b:
+        a.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        a.bind(("127.0.0.1", 0))
+        a.listen(1)
+        base = a.getsockname()[1]
+        b.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        try:
+            b.bind(("127.0.0.1", base + 1))
+            b.listen(1)
+        except OSError:
+            pass  # neighbour already taken by something else; still fine
+        found = web._first_free_port("127.0.0.1", base)
+        assert found is not None
+        assert found > base
+
+
+def test_first_free_port_gives_up_on_a_full_span():
+    with socket.socket() as a:
+        a.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        a.bind(("127.0.0.1", 0))
+        a.listen(1)
+        port = a.getsockname()[1]
+        assert web._first_free_port("127.0.0.1", port, span=1) is None
