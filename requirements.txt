@@ -1,0 +1,5 @@
+# Core dependencies for the YouTube Agent Engine
+youtube-transcript-api>=1.0.0   # captions / transcripts
+yt-dlp>=2024.8.6                # video + channel metadata
+google-genai>=1.0.0             # Gemini API client
+python-dotenv>=1.0.1            # load GEMINI_API_KEY from .env
