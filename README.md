@@ -29,23 +29,77 @@ describe.
 
 ## Setup
 
-```bash
-# 1. clone and enter the repo
+Python 3.10 or newer. Pick your platform — the two differ more than usual, since
+virtual-environment activation is not the same command.
+
+### Windows (PowerShell)
+
+```powershell
 git clone https://github.com/epi-stem-ological/Code-ithnain.git
 cd Code-ithnain
+git checkout claude/youtube-agent-setup-365qkd
 
-# 2. create and activate a virtual environment (Python 3.10+)
-python3 -m venv .venv
-source .venv/bin/activate          # Windows: .venv\Scripts\activate
-
-# 3. install dependencies
-pip install --upgrade pip
-pip install -r requirements.txt    # or requirements-dev.txt to also get pytest
-
-# 4. add your Gemini API key
-cp .env.example .env
-$EDITOR .env                       # paste your key from https://aistudio.google.com/apikey
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
 ```
+
+If that last line fails with *"running scripts is disabled on this system"*,
+allow scripts for this one terminal session and try again:
+
+```powershell
+Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
+.\.venv\Scripts\Activate.ps1
+```
+
+Your prompt should now start with `(.venv)`. **If it does not, the environment
+is not active** and everything you install lands in your global Python instead.
+Then:
+
+```powershell
+pip install -r requirements.txt
+Set-Content .env "GEMINI_API_KEY=paste_your_key_here"
+```
+
+Use `Set-Content` rather than creating the file in Notepad or Explorer — both
+tend to save it as `.env.txt`, which the app will not find.
+
+Run it — note the leading `python`, which PowerShell requires:
+
+```powershell
+python app.py                                            # web UI
+python main.py "https://youtu.be/VIDEO_ID"               # command line
+```
+
+### macOS / Linux
+
+```bash
+git clone https://github.com/epi-stem-ological/Code-ithnain.git
+cd Code-ithnain
+git checkout claude/youtube-agent-setup-365qkd
+
+python3 -m venv .venv
+source .venv/bin/activate
+
+pip install -r requirements.txt
+cp .env.example .env
+$EDITOR .env                       # set GEMINI_API_KEY=...
+```
+
+```bash
+python app.py                                            # web UI
+python main.py "https://youtu.be/VIDEO_ID"               # command line
+```
+
+### If something goes wrong
+
+| Symptom | Cause | Fix |
+| --- | --- | --- |
+| `source : The term 'source' is not recognized` | Unix command on PowerShell | `.\.venv\Scripts\Activate.ps1` |
+| `main.py : The term 'main.py' is not recognized` | PowerShell will not run scripts from the current directory | `python main.py "..."` |
+| `running scripts is disabled on this system` | PowerShell execution policy | `Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass` |
+| `pip` says *Requirement already satisfied* pointing at `AppData\...` | The venv is not active; packages went global | Activate first, confirm the `(.venv)` prefix, reinstall |
+| `GEMINI_API_KEY is not set` | No `.env`, or it was saved as `.env.txt` | `Set-Content .env "GEMINI_API_KEY=..."` |
+| `no English captions are available` | The video has no transcript | Not a bug. Try another video, or `-l` for another language |
 
 To leave the environment later: `deactivate`.
 

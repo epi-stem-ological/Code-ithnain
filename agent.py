@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import os
 import secrets
+import sys
 
 from dotenv import load_dotenv
 from google import genai
@@ -228,9 +229,14 @@ def get_client(api_key: str | None = None) -> genai.Client:
     """Build a Gemini client, reading GEMINI_API_KEY from the environment by default."""
     key = (api_key or os.environ.get("GEMINI_API_KEY", "")).strip()
     if not key:
+        create = (
+            'Set-Content .env "GEMINI_API_KEY=your_key"'
+            if sys.platform == "win32"
+            else "cp .env.example .env   # then edit it"
+        )
         raise AgentError(
-            "GEMINI_API_KEY is not set. Copy .env.example to .env and add your key "
-            "from https://aistudio.google.com/apikey"
+            "GEMINI_API_KEY is not set. Get a key at https://aistudio.google.com/apikey, "
+            f"then create a .env file in this folder:  {create}"
         )
     return genai.Client(api_key=key)
 
