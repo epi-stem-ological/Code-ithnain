@@ -4,3 +4,5 @@ yt-dlp>=2024.8.6                # video + channel metadata
 google-genai>=1.0.0             # Gemini API client
 python-dotenv>=1.0.1            # load GEMINI_API_KEY from .env
 rich>=13.7.0                    # formatted console output
+fastapi>=0.115.0                # web UI (app.py)
+uvicorn[standard]>=0.30.0       # server for the web UI

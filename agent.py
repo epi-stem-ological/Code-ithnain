@@ -56,7 +56,10 @@ class InjectionFinding(BaseModel):
 
 
 class Analysis(BaseModel):
-    summary: str = Field(description="A high-level summary of the video, 3-6 sentences.")
+    summary: str = Field(
+        description="A high-level summary of the video, 3-6 sentences. "
+                    "Plain prose only -- no markdown, asterisks or backticks."
+    )
     takeaways: list[Takeaway] = Field(description="Key actionable takeaways, most useful first.")
     highlights: list[Highlight] = Field(description="Timestamped highlights in chronological order.")
     insights: list[InsightCategory] = Field(description="Insights grouped into named categories.")
@@ -148,6 +151,10 @@ what the video does not cover.
 Ground every statement in the supplied material. If something is not in the \
 transcript or metadata, do not assert it. Prefer "the speaker claims X" to \
 "X is true". Write plainly, with no filler or marketing tone.
+
+Write every field as PLAIN PROSE. Do not use markdown syntax -- no **bold**, no \
+`backticks`, no bullet characters. The consuming interfaces render text, not \
+markdown, so the syntax would be shown literally to the reader.
 """
 
 

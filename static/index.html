@@ -1,0 +1,375 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>YouTube Agent Engine</title>
+<style>
+:root{
+  --bg:#fbfbfd; --panel:#fff; --border:#e3e3ea; --fg:#16161a; --muted:#6b6b76;
+  --accent:#c1272d; --accent-fg:#fff; --ring:rgba(193,39,45,.18);
+  --green:#0a7d4a; --amber:#8a6100; --blue:#1a5fb4; --red:#b3261e;
+  --green-bg:#e9f7f0; --amber-bg:#fdf6e3; --blue-bg:#eaf1fb; --red-bg:#fdecea;
+  --radius:12px;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#111114; --panel:#191920; --border:#2c2c36; --fg:#eceef2; --muted:#9a9aa6;
+  --accent:#e5484d; --accent-fg:#fff; --ring:rgba(229,72,77,.25);
+  --green:#3dd68c; --amber:#e2b13c; --blue:#7cb2ff; --red:#ff6369;
+  --green-bg:#12241c; --amber-bg:#2a2314; --blue-bg:#141f30; --red-bg:#2a1517;
+}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);
+  font:15px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI",Inter,Roboto,Helvetica,Arial,sans-serif;
+  -webkit-font-smoothing:antialiased}
+.wrap{max-width:940px;margin:0 auto;padding:40px 20px 80px}
+header h1{font-size:26px;font-weight:650;margin:0 0 4px;letter-spacing:-.02em}
+header p{margin:0 0 28px;color:var(--muted);font-size:14px}
+.badge{display:inline-block;font-size:11px;font-weight:650;letter-spacing:.04em;text-transform:uppercase;
+  padding:3px 8px;border-radius:999px;background:var(--amber-bg);color:var(--amber);margin-left:8px;vertical-align:2px}
+
+form{background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);padding:20px;margin-bottom:22px}
+.row{display:flex;gap:10px}
+input[type=url],input[type=text],select{width:100%;padding:12px 14px;font-size:15px;font-family:inherit;
+  background:var(--bg);color:var(--fg);border:1px solid var(--border);border-radius:9px;outline:none}
+input:focus,select:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--ring)}
+button{padding:12px 22px;font-size:15px;font-weight:600;font-family:inherit;white-space:nowrap;
+  background:var(--accent);color:var(--accent-fg);border:0;border-radius:9px;cursor:pointer}
+button:hover:not(:disabled){filter:brightness(1.08)}
+button:disabled{opacity:.55;cursor:not-allowed}
+details{margin-top:14px}
+summary{cursor:pointer;color:var(--muted);font-size:13px;user-select:none;width:fit-content}
+summary:hover{color:var(--fg)}
+.opts{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:14px}
+.opts label{display:block;font-size:12px;font-weight:600;color:var(--muted);margin-bottom:5px}
+.opts .full{grid-column:1/-1}
+
+.note{padding:12px 16px;border-radius:9px;font-size:14px;margin-bottom:18px}
+.note.warn{background:var(--amber-bg);color:var(--amber)}
+.note.err{background:var(--red-bg);color:var(--red)}
+.note strong{font-weight:650}
+
+#status{display:none;align-items:center;gap:11px;color:var(--muted);font-size:14px;padding:22px 0}
+#status.on{display:flex}
+.spin{width:16px;height:16px;border:2px solid var(--border);border-top-color:var(--accent);
+  border-radius:50%;animation:sp .7s linear infinite;flex:none}
+@keyframes sp{to{transform:rotate(360deg)}}
+
+.card{background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);padding:22px;margin-bottom:16px}
+.card h2{font-size:12px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--muted);margin:0 0 14px}
+.vid h3{margin:0 0 6px;font-size:19px;font-weight:650;letter-spacing:-.01em}
+.vid .meta{color:var(--muted);font-size:13px}
+.vid a{color:var(--blue)}
+#summary{font-size:16px;line-height:1.7;margin:0}
+
+ol.take{margin:0;padding:0;list-style:none;counter-reset:t}
+ol.take li{counter-increment:t;padding:0 0 16px 38px;position:relative}
+ol.take li:last-child{padding-bottom:0}
+ol.take li::before{content:counter(t);position:absolute;left:0;top:1px;width:24px;height:24px;
+  display:grid;place-items:center;border-radius:50%;background:var(--blue-bg);color:var(--blue);
+  font-size:12px;font-weight:700}
+ol.take b{display:block;font-weight:620}
+ol.take span{color:var(--muted);font-size:14px}
+
+.hl{display:flex;gap:14px;padding:12px 0;border-top:1px solid var(--border)}
+.hl:first-child{border-top:0;padding-top:0}
+.ts{flex:none;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:13px;font-weight:600;
+  color:var(--accent);text-decoration:none;padding-top:1px}
+.ts:hover{text-decoration:underline}
+.hl b{display:block;font-weight:620}
+.hl span{color:var(--muted);font-size:14px}
+
+.cat{margin-bottom:16px}
+.cat:last-child{margin-bottom:0}
+.cat h4{margin:0 0 7px;font-size:14px;font-weight:680;color:var(--blue)}
+.cat ul{margin:0;padding-left:19px}
+.cat li{margin-bottom:4px}
+
+.clear{background:var(--green-bg);color:var(--green);font-weight:600}
+.inj{border-color:var(--red)}
+.inj h2{color:var(--red)}
+.inj .item{padding:11px 0;border-top:1px solid var(--border)}
+.inj .item:first-of-type{border-top:0;padding-top:0}
+.inj q{display:block;font-style:italic;background:var(--red-bg);color:var(--red);
+  padding:8px 11px;border-radius:7px;margin:5px 0;font-size:14px;word-break:break-word}
+.inj .why{color:var(--muted);font-size:14px}
+
+.notes{margin:0;padding-left:19px;color:var(--muted);font-size:14px}
+.actions{display:flex;gap:9px;margin-top:20px}
+.actions button{background:transparent;color:var(--muted);border:1px solid var(--border);
+  font-size:13px;font-weight:600;padding:8px 15px}
+.actions button:hover{color:var(--fg);border-color:var(--fg)}
+footer{text-align:center;color:var(--muted);font-size:12px;margin-top:34px}
+@media(max-width:640px){.row{flex-direction:column}.opts{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>YouTube Agent Engine<span id="demoBadge" class="badge" hidden>Demo</span></h1>
+    <p>Paste a YouTube link. Get a summary, actionable takeaways, timestamped highlights and categorized insights.</p>
+  </header>
+
+  <div id="keyWarn" class="note warn" hidden></div>
+
+  <form id="form">
+    <div class="row">
+      <input id="url" type="url" placeholder="https://www.youtube.com/watch?v=…" required autofocus>
+      <button id="go" type="submit">Analyze</button>
+    </div>
+    <details>
+      <summary>Options</summary>
+      <div class="opts">
+        <div class="full">
+          <label for="task">Custom instruction (optional)</label>
+          <input id="task" type="text" placeholder="e.g. list every book mentioned, with timestamps">
+        </div>
+        <div>
+          <label for="model">Model</label>
+          <select id="model">
+            <option value="">Default (gemini-2.5-flash)</option>
+            <option value="gemini-2.5-flash">gemini-2.5-flash — fast</option>
+            <option value="gemini-2.5-pro">gemini-2.5-pro — stronger</option>
+          </select>
+        </div>
+        <div>
+          <label for="lang">Caption languages</label>
+          <input id="lang" type="text" placeholder="en, es  (comma separated)">
+        </div>
+      </div>
+    </details>
+  </form>
+
+  <div id="err" class="note err" hidden></div>
+  <div id="status"><div class="spin"></div><span id="statusText"></span></div>
+  <div id="out"></div>
+
+  <footer>Runs locally · transcripts are treated as untrusted input</footer>
+</div>
+
+<script>
+"use strict";
+const $ = id => document.getElementById(id);
+let lastPayload = null;
+
+/* Every value below originates from a transcript an uploader controls, so it is
+   inserted with textContent. Nothing here ever touches innerHTML. */
+function el(tag, cls, text){
+  const n = document.createElement(tag);
+  if (cls) n.className = cls;
+  if (text !== undefined && text !== null) n.textContent = String(text);
+  return n;
+}
+function card(title, cls){
+  const c = el("div", "card" + (cls ? " " + cls : ""));
+  if (title) c.appendChild(el("h2", null, title));
+  return c;
+}
+function toSeconds(ts){
+  const parts = String(ts).trim().split(":").map(Number);
+  if (parts.some(Number.isNaN)) return null;
+  if (parts.length === 3) return parts[0]*3600 + parts[1]*60 + parts[2];
+  if (parts.length === 2) return parts[0]*60 + parts[1];
+  return null;
+}
+
+function renderVideo(v){
+  const c = card(null, "vid");
+  c.appendChild(el("h3", null, v.title));
+  const bits = [v.author, v.duration];
+  if (v.word_count) bits.push(v.word_count.toLocaleString() + " words");
+  if (v.transcript_language) bits.push(v.transcript_language);
+  c.appendChild(el("div", "meta", bits.filter(Boolean).join("  ·  ")));
+  const a = el("a", null, v.url);
+  a.href = v.url; a.target = "_blank"; a.rel = "noopener noreferrer";
+  const p = el("div", "meta"); p.appendChild(a);
+  c.appendChild(p);
+  return c;
+}
+function renderSummary(text){
+  const c = card("Summary");
+  c.appendChild(el("p", null, text)).id = "summary";
+  return c;
+}
+function renderTakeaways(items){
+  if (!items || !items.length) return null;
+  const c = card("Actionable Takeaways");
+  const ol = el("ol", "take");
+  for (const it of items){
+    const li = el("li");
+    li.appendChild(el("b", null, it.takeaway));
+    if (it.why) li.appendChild(el("span", null, it.why));
+    ol.appendChild(li);
+  }
+  c.appendChild(ol);
+  return c;
+}
+function renderHighlights(items, videoId){
+  if (!items || !items.length) return null;
+  const c = card("Timestamped Highlights");
+  for (const it of items){
+    const row = el("div", "hl");
+    const secs = toSeconds(it.timestamp);
+    let ts;
+    if (secs !== null && videoId){
+      ts = el("a", "ts", it.timestamp);
+      ts.href = "https://www.youtube.com/watch?v=" + encodeURIComponent(videoId) + "&t=" + secs + "s";
+      ts.target = "_blank"; ts.rel = "noopener noreferrer";
+      ts.title = "Open the video at " + it.timestamp;
+    } else {
+      ts = el("span", "ts", it.timestamp);
+    }
+    row.appendChild(ts);
+    const body = el("div");
+    body.appendChild(el("b", null, it.title));
+    if (it.detail) body.appendChild(el("span", null, it.detail));
+    row.appendChild(body);
+    c.appendChild(row);
+  }
+  return c;
+}
+function renderInsights(groups){
+  if (!groups || !groups.length) return null;
+  const c = card("Categorized Insights");
+  for (const g of groups){
+    const box = el("div", "cat");
+    box.appendChild(el("h4", null, g.category));
+    const ul = el("ul");
+    for (const p of (g.points || [])) ul.appendChild(el("li", null, p));
+    box.appendChild(ul);
+    c.appendChild(box);
+  }
+  return c;
+}
+function renderNotes(notes){
+  if (!notes || !notes.length) return null;
+  const c = card("Caveats");
+  const ul = el("ul", "notes");
+  for (const n of notes) ul.appendChild(el("li", null, n));
+  c.appendChild(ul);
+  return c;
+}
+function renderInjection(items){
+  if (!items || !items.length){
+    return card(null, "clear").appendChild(
+      el("div", null, "✓  No prompt-injection attempts detected in the transcript.")
+    ).parentNode;
+  }
+  const c = card("⚠ Prompt injection detected — reported, not obeyed", "inj");
+  for (const f of items){
+    const box = el("div", "item");
+    box.appendChild(el("b", null, f.timestamp));
+    box.appendChild(el("q", null, f.quoted_text));
+    if (f.assessment) box.appendChild(el("div", "why", f.assessment));
+    c.appendChild(box);
+  }
+  return c;
+}
+
+function render(payload){
+  const out = $("out");
+  out.replaceChildren();
+  const a = payload.analysis, v = payload.video;
+  const parts = [
+    renderVideo(v),
+    renderSummary(a.summary),
+    renderTakeaways(a.takeaways),
+    renderHighlights(a.highlights, v.video_id),
+    renderInsights(a.insights),
+    renderNotes(a.content_notes),
+    renderInjection(a.injection_attempts),
+  ];
+  for (const p of parts) if (p) out.appendChild(p);
+
+  const actions = el("div", "actions");
+  const dl = el("button", null, "Download JSON");
+  dl.type = "button";
+  dl.onclick = () => {
+    const blob = new Blob([JSON.stringify(payload, null, 2)], {type:"application/json"});
+    const a2 = document.createElement("a");
+    a2.href = URL.createObjectURL(blob);
+    a2.download = (v.video_id || "analysis") + ".json";
+    a2.click();
+    URL.revokeObjectURL(a2.href);
+  };
+  const cp = el("button", null, "Copy JSON");
+  cp.type = "button";
+  cp.onclick = async () => {
+    try { await navigator.clipboard.writeText(JSON.stringify(payload, null, 2)); cp.textContent = "Copied"; }
+    catch { cp.textContent = "Copy failed"; }
+    setTimeout(() => { cp.textContent = "Copy JSON"; }, 1600);
+  };
+  actions.append(dl, cp);
+  out.appendChild(actions);
+}
+
+function busy(on, text){
+  $("status").classList.toggle("on", on);
+  $("statusText").textContent = text || "";
+  $("go").disabled = on;
+  $("go").textContent = on ? "Working…" : "Analyze";
+}
+function showError(msg, hint){
+  const box = $("err");
+  box.replaceChildren();
+  box.appendChild(el("strong", null, msg));
+  if (hint) box.appendChild(el("div", null, hint));
+  box.hidden = false;
+}
+
+$("form").addEventListener("submit", async e => {
+  e.preventDefault();
+  $("err").hidden = true;
+  $("out").replaceChildren();
+
+  const langs = $("lang").value.split(",").map(s => s.trim()).filter(Boolean);
+  const body = {
+    url: $("url").value.trim(),
+    task: $("task").value.trim() || null,
+    model: $("model").value || null,
+    languages: langs.length ? langs : null,
+  };
+
+  busy(true, "Fetching metadata and transcript…");
+  let slow = setTimeout(() => $("statusText").textContent = "Analyzing with Gemini — this can take up to a minute…", 4000);
+
+  try{
+    const res = await fetch("/api/analyze", {
+      method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify(body),
+    });
+    const data = await res.json();
+    if (!res.ok){
+      const hints = {
+        transcript: "Live streams often have no captions until well after the broadcast ends. Try a different video, or set another language under Options.",
+        analyze: "Check that GEMINI_API_KEY in your .env is valid and has quota.",
+        extract: "Check the link is a YouTube video URL.",
+      };
+      showError(data.error || ("Request failed (" + res.status + ")"), hints[data.stage]);
+      return;
+    }
+    lastPayload = data;
+    render(data);
+  }catch(ex){
+    showError("Could not reach the local server.", "Is `python app.py` still running in your terminal?");
+  }finally{
+    clearTimeout(slow);
+    busy(false);
+  }
+});
+
+fetch("/api/status").then(r => r.json()).then(s => {
+  if (s.demo){
+    $("demoBadge").hidden = false;
+    $("url").value = "https://www.youtube.com/live/6lnGZmAf61A";
+    return;
+  }
+  if (!s.has_key){
+    const w = $("keyWarn");
+    w.appendChild(el("strong", null, "No GEMINI_API_KEY found."));
+    w.appendChild(el("div", null, "Copy .env.example to .env and add your key from aistudio.google.com/apikey, then restart the server. Or run: python app.py --demo"));
+    w.hidden = false;
+  }
+}).catch(() => {});
+</script>
+</body>
+</html>

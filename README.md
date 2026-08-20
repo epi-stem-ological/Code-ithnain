@@ -49,7 +49,35 @@ $EDITOR .env                       # paste your key from https://aistudio.google
 
 To leave the environment later: `deactivate`.
 
-## Usage
+## The web UI (easiest)
+
+```bash
+python app.py
+```
+
+Opens `http://127.0.0.1:8000` in your browser. Paste a link, press Analyze.
+
+No key yet? See the interface first with canned data — no network call, no key:
+
+```bash
+python app.py --demo
+```
+
+Other flags: `--port 9000`, `--no-browser`, `--host`.
+
+The page shows the summary, takeaways, highlights, insights and caveats, plus a
+prompt-injection panel. Highlight timestamps are links that open the video at
+that exact second. **Download JSON** / **Copy JSON** give you the raw result.
+
+It binds to `127.0.0.1` only and has no authentication — a local tool, not
+something to expose to a network.
+
+Model output is inserted into the page with `textContent`, never `innerHTML`, so
+a transcript that steers the model into emitting HTML or `<script>` renders as
+visible text rather than executing. Covered by a browser test that serves a
+hostile payload through every field.
+
+## The command line
 
 ```bash
 python main.py "https://youtu.be/VIDEO_ID"
@@ -68,13 +96,15 @@ prompt-injection report that is printed whether or not anything was found.
 Gemini fills a pydantic schema (`agent.Analysis`) rather than returning prose, so
 `--json` is structured data you can pipe elsewhere, not scraped text.
 
-### The three files
+### The files
 
 | File | Role |
 | --- | --- |
+| `app.py` | Local web UI (FastAPI). `python app.py` |
 | `extractor.py` | `extract(url) -> VideoData`. yt-dlp metadata + timestamped English transcript. No LLM. |
 | `agent.py` | `analyze(video) -> Analysis`. System prompt, injection defenses, Gemini call. |
 | `main.py` | CLI entry point and `rich` console rendering. |
+| `static/index.html` | The UI page: self-contained, theme-aware, no CDN. |
 
 A missing transcript is not an exception: `extract()` returns a `VideoData` with
 `transcript=None` and a readable `transcript_error` ("the uploader has disabled
@@ -190,9 +220,10 @@ pip install -r requirements-dev.txt
 pytest -q
 ```
 
-84 tests, no network or API key required. They cover URL parsing, transcript
+94 tests, no network or API key required. They cover URL parsing, transcript
 formatting, graceful handling of disabled/missing captions, prompt assembly,
-envelope-escape prevention, and every CLI path including the error exits.
+envelope-escape prevention, every CLI path including the error exits, and the
+web API's success and failure responses.
 
 ## Notes and limits
 
