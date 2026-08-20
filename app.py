@@ -13,7 +13,9 @@ from __future__ import annotations
 
 import argparse
 import os
+import socket
 import threading
+import time
 import webbrowser
 from pathlib import Path
 
@@ -151,6 +153,31 @@ app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 app.state.demo = False
 
 
+def _port_is_free(host: str, port: int) -> bool:
+    """True if nothing is already listening on host:port."""
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as probe:
+        probe.settimeout(0.5)
+        return probe.connect_ex((host, port)) != 0
+
+
+def _open_when_ready(host: str, port: int, url: str, timeout: float = 30.0) -> None:
+    """Open the browser only once the server actually accepts connections.
+
+    Opening on a fixed timer races the server's startup: on a cold start the
+    browser can arrive first and show a connection error, which reads as "the
+    app is broken" even though it comes up a moment later.
+    """
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as probe:
+            probe.settimeout(0.5)
+            if probe.connect_ex((host, port)) == 0:
+                webbrowser.open(url)
+                return
+        time.sleep(0.25)
+    print(f"  ! Server did not come up within {timeout:.0f}s. Open {url} manually.")
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Local web UI for the YouTube Agent Engine.")
     parser.add_argument("--port", type=int, default=8000)
@@ -162,16 +189,27 @@ def main() -> int:
     app.state.demo = args.demo
     url = f"http://{args.host}:{args.port}"
 
+    if not _port_is_free(args.host, args.port):
+        print(f"\n  ! Port {args.port} is already in use.")
+        print(f"    Something else is listening there — possibly an earlier copy of this server.")
+        print(f"    Close it, or start on another port:  python app.py --port {args.port + 1}\n")
+        return 1
+
     print(f"\n  YouTube Agent Engine{'  [demo mode]' if args.demo else ''}")
-    print(f"  Open:  {url}\n")
+    print(f"  Open:  {url}")
+    print(f"  Leave this window open while you use it. Ctrl+C to stop.\n")
     if not args.demo and not os.environ.get("GEMINI_API_KEY", "").strip():
-        print("  ! GEMINI_API_KEY is not set. Copy .env.example to .env and add your key,")
+        print("  ! GEMINI_API_KEY is not set. Create a .env file with your key,")
         print("    or restart with --demo to preview the interface.\n")
 
     if not args.no_browser:
-        threading.Timer(1.0, lambda: webbrowser.open(url)).start()
+        threading.Thread(target=_open_when_ready, args=(args.host, args.port, url), daemon=True).start()
 
-    uvicorn.run(app, host=args.host, port=args.port, log_level="warning")
+    try:
+        uvicorn.run(app, host=args.host, port=args.port, log_level="warning")
+    except OSError as exc:
+        print(f"\n  ! Could not start the server: {exc}")
+        return 1
     return 0
 
 

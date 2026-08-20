@@ -126,3 +126,56 @@ def test_models_endpoint_reports_failure_without_crashing(client):
         response = client.get("/api/models")
     assert response.status_code == 502
     assert response.json()["models"] == []
+
+
+# --- startup robustness -----------------------------------------------------
+
+import socket  # noqa: E402
+import threading  # noqa: E402
+import time  # noqa: E402
+
+
+def test_port_is_free_detects_a_listener():
+    with socket.socket() as srv:
+        srv.bind(("127.0.0.1", 0))
+        srv.listen(1)
+        port = srv.getsockname()[1]
+        assert web._port_is_free("127.0.0.1", port) is False
+    # once closed, the port reads as free again
+    assert web._port_is_free("127.0.0.1", port) is True
+
+
+def test_browser_waits_for_a_slow_server(monkeypatch):
+    """Regression: opening on a fixed timer raced the server and showed an error page."""
+    opened = []
+    monkeypatch.setattr(web.webbrowser, "open", lambda url: opened.append(url))
+
+    with socket.socket() as probe:
+        probe.bind(("127.0.0.1", 0))
+        port = probe.getsockname()[1]
+
+    thread = threading.Thread(
+        target=web._open_when_ready, args=("127.0.0.1", port, "http://x"), kwargs={"timeout": 5.0}
+    )
+    thread.start()
+    time.sleep(0.8)
+    assert opened == [], "browser opened before anything was listening"
+
+    with socket.socket() as srv:
+        srv.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        srv.bind(("127.0.0.1", port))
+        srv.listen(1)
+        thread.join(timeout=5)
+        assert opened == ["http://x"]
+
+
+def test_browser_open_gives_up_rather_than_hanging(monkeypatch, capsys):
+    opened = []
+    monkeypatch.setattr(web.webbrowser, "open", lambda url: opened.append(url))
+    with socket.socket() as probe:
+        probe.bind(("127.0.0.1", 0))
+        port = probe.getsockname()[1]
+
+    web._open_when_ready("127.0.0.1", port, "http://x", timeout=1.0)
+    assert opened == []
+    assert "did not come up" in capsys.readouterr().out
