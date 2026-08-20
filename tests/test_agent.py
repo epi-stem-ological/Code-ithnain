@@ -176,3 +176,42 @@ def _nonce_of(prompt: str) -> str:
 def test_system_prompt_explains_the_nonce():
     assert "nonce" in SYSTEM_PROMPT
     assert "LAST such marker" in SYSTEM_PROMPT
+
+
+# --- API error explanation (regression: retired model names) ----------------
+
+from agent import _explain_api_error  # noqa: E402
+
+RETIRED = (
+    "404 NOT_FOUND. {'error': {'code': 404, 'message': 'This model "
+    "models/gemini-2.5-flash is no longer available to new users. Please update "
+    "your code to use models/gemini-3.6-flash for the latest features and "
+    "improvements.', 'status': 'NOT_FOUND'}}"
+)
+
+
+def test_retired_model_error_names_the_replacement():
+    message = _explain_api_error(Exception(RETIRED), "gemini-2.5-flash")
+    assert "gemini-2.5-flash is not available" in message
+    assert "Google suggests gemini-3.6-flash" in message
+    assert "GEMINI_MODEL=gemini-3.6-flash" in message
+    assert RETIRED in message  # the raw response is still shown
+
+
+def test_retired_model_without_a_suggestion_points_at_list_models():
+    message = _explain_api_error(Exception("404 model not found"), "gemini-x")
+    assert "--list-models" in message
+
+
+def test_bad_key_error_is_identified():
+    message = _explain_api_error(Exception("400 API key not valid"), "m")
+    assert "GEMINI_API_KEY was rejected" in message
+
+
+def test_quota_error_is_identified():
+    message = _explain_api_error(Exception("429 RESOURCE_EXHAUSTED quota"), "m")
+    assert "quota" in message.lower()
+
+
+def test_unrecognized_errors_pass_through():
+    assert "boom" in _explain_api_error(Exception("boom"), "m")

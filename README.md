@@ -137,7 +137,7 @@ hostile payload through every field.
 python main.py "https://youtu.be/VIDEO_ID"
 
 python main.py "https://youtu.be/VIDEO_ID" -t "list every book mentioned"
-python main.py "https://youtu.be/VIDEO_ID" -m gemini-2.5-pro
+python main.py "https://youtu.be/VIDEO_ID" -m a stronger model
 python main.py "https://youtu.be/VIDEO_ID" -l es -l en     # caption language preference
 python main.py "https://youtu.be/VIDEO_ID" --json          # raw JSON instead of panels
 python main.py "https://youtu.be/VIDEO_ID" --save out.json # keep a copy

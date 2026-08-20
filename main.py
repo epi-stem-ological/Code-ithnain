@@ -17,7 +17,7 @@ from rich.rule import Rule
 from rich.table import Table
 from rich.text import Text
 
-from agent import AgentError, Analysis, analyze
+from agent import AgentError, Analysis, analyze, list_models
 from extractor import ExtractionError, VideoData, extract
 
 console = Console()
@@ -166,11 +166,12 @@ def build_parser() -> argparse.ArgumentParser:
         prog="main.py",
         description="Analyze a YouTube video with Gemini.",
     )
-    parser.add_argument("url", help="YouTube URL, short link, or 11-character video id")
+    parser.add_argument("url", nargs="?", help="YouTube URL, short link, or 11-character video id")
     parser.add_argument("-t", "--task", default=None, help="Override the analysis instruction")
     parser.add_argument("-m", "--model", default=None, help="Gemini model (default: gemini-2.5-flash)")
     parser.add_argument("-l", "--lang", action="append", default=None,
                         help="Caption language preference, repeatable (default: English)")
+    parser.add_argument("--list-models", action="store_true", help="List models your API key can use, then exit")
     parser.add_argument("--json", action="store_true", help="Emit raw JSON instead of formatted output")
     parser.add_argument("--save", metavar="PATH", default=None, help="Also write the analysis as JSON to PATH")
     return parser
@@ -178,6 +179,27 @@ def build_parser() -> argparse.ArgumentParser:
 
 def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
+
+    if args.list_models:
+        try:
+            models = list_models()
+        except AgentError as exc:
+            err_console.print(f"[bold red]{exc}[/bold red]")
+            return 1
+        table = Table(show_header=True, header_style="bold magenta", box=None, padding=(0, 2))
+        table.add_column("Model", style="bold cyan")
+        table.add_column("Name", style="dim")
+        table.add_column("Input tokens", justify="right", style="dim")
+        for model in models:
+            limit = model["input_token_limit"]
+            table.add_row(str(model["name"]), str(model["display_name"]), f"{limit:,}" if limit else "")
+        console.print(table)
+        console.print(f"\n[dim]Set one with GEMINI_MODEL=<name> in .env, or --model <name>[/dim]")
+        return 0
+
+    if not args.url:
+        err_console.print("[bold red]error:[/bold red] a YouTube URL is required")
+        return 2
 
     # 1. Extract
     try:

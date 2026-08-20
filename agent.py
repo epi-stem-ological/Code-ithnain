@@ -21,7 +21,7 @@ from extractor import VideoData
 
 load_dotenv()
 
-DEFAULT_MODEL = "gemini-2.5-flash"
+DEFAULT_MODEL = "gemini-3.6-flash"
 
 
 class AgentError(RuntimeError):
@@ -225,6 +225,65 @@ def build_prompt(video: VideoData, task: str | None = None, nonce: str | None = 
     )
 
 
+def _explain_api_error(exc: Exception, model_name: str) -> str:
+    """Turn an API failure into something the user can act on.
+
+    Google retires model names on its own schedule, and the resulting error is a
+    bare 404 that reads like a broken URL. When the message names a replacement,
+    put that front and centre.
+    """
+    text = str(exc)
+    lower = text.lower()
+
+    if "no longer available" in lower or ("404" in text and "model" in lower):
+        replacement = ""
+        for token in text.replace(",", " ").replace("'", " ").split():
+            candidate = token.strip(".").removeprefix("models/")
+            if candidate.startswith("gemini-") and candidate != model_name:
+                replacement = candidate
+                break
+        hint = (
+            f"Google suggests {replacement} instead. "
+            f'Set it in your .env as GEMINI_MODEL={replacement}, or pass --model {replacement}.'
+            if replacement
+            else "Run  python main.py --list-models  to see what your key can use."
+        )
+        return f"The model {model_name} is not available. {hint}\n\nFull response: {text}"
+
+    if "api key not valid" in lower or "api_key_invalid" in lower or "401" in text:
+        return f"Your GEMINI_API_KEY was rejected. Check it at https://aistudio.google.com/apikey\n\n{text}"
+
+    if "quota" in lower or "429" in text or "resource_exhausted" in lower:
+        return f"Rate limit or quota exceeded. Wait a moment, or check quota in AI Studio.\n\n{text}"
+
+    return f"Gemini request failed: {text}"
+
+
+def list_models(client: genai.Client | None = None) -> list[dict[str, object]]:
+    """List models this API key can call for text generation."""
+    client = client or get_client()
+    try:
+        models = list(client.models.list())
+    except Exception as exc:
+        raise AgentError(f"Could not list models: {exc}") from exc
+
+    usable: list[dict[str, object]] = []
+    for model in models:
+        actions = getattr(model, "supported_actions", None) or []
+        if actions and "generateContent" not in actions:
+            continue
+        name = (model.name or "").removeprefix("models/")
+        if not name:
+            continue
+        usable.append({
+            "name": name,
+            "display_name": getattr(model, "display_name", "") or "",
+            "input_token_limit": getattr(model, "input_token_limit", None),
+        })
+    usable.sort(key=lambda m: str(m["name"]))
+    return usable
+
+
 def get_client(api_key: str | None = None) -> genai.Client:
     """Build a Gemini client, reading GEMINI_API_KEY from the environment by default."""
     key = (api_key or os.environ.get("GEMINI_API_KEY", "")).strip()
@@ -266,7 +325,7 @@ def analyze(
             config=config,
         )
     except Exception as exc:
-        raise AgentError(f"Gemini request failed: {exc}") from exc
+        raise AgentError(_explain_api_error(exc, model_name)) from exc
 
     analysis = response.parsed
     if isinstance(analysis, Analysis):

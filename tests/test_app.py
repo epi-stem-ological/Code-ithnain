@@ -111,3 +111,18 @@ def test_demo_summary_contains_no_markdown_syntax(client):
 def test_oversized_url_is_rejected(client):
     response = client.post("/api/analyze", json={"url": "x" * 3000})
     assert response.status_code == 422  # pydantic validation
+
+
+def test_models_endpoint_lists_usable_models(client):
+    fake = [{"name": "gemini-3.6-flash", "display_name": "Flash", "input_token_limit": 1048576}]
+    with patch.object(web, "list_models", return_value=fake):
+        body = client.get("/api/models").json()
+    assert body["models"][0]["name"] == "gemini-3.6-flash"
+    assert body["default"] == web.DEFAULT_MODEL
+
+
+def test_models_endpoint_reports_failure_without_crashing(client):
+    with patch.object(web, "list_models", side_effect=AgentError("bad key")):
+        response = client.get("/api/models")
+    assert response.status_code == 502
+    assert response.json()["models"] == []

@@ -23,7 +23,7 @@ from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
-from agent import AgentError, Analysis, analyze
+from agent import DEFAULT_MODEL, AgentError, Analysis, analyze, list_models
 from extractor import ExtractionError, VideoData, extract
 
 STATIC_DIR = Path(__file__).parent / "static"
@@ -103,8 +103,19 @@ def status() -> dict:
     return {
         "has_key": bool(os.environ.get("GEMINI_API_KEY", "").strip()),
         "demo": bool(app.state.demo),
-        "model": os.environ.get("GEMINI_MODEL", "gemini-2.5-flash"),
+        "model": os.environ.get("GEMINI_MODEL", DEFAULT_MODEL),
     }
+
+
+@app.get("/api/models")
+def models_endpoint() -> JSONResponse:
+    """Let the page populate its model list from the API rather than a hardcoded one."""
+    if app.state.demo:
+        return JSONResponse({"models": [{"name": DEFAULT_MODEL, "display_name": "demo"}], "default": DEFAULT_MODEL})
+    try:
+        return JSONResponse({"models": list_models(), "default": DEFAULT_MODEL})
+    except AgentError as exc:
+        return JSONResponse({"error": str(exc), "models": [], "default": DEFAULT_MODEL}, status_code=502)
 
 
 @app.post("/api/analyze")
