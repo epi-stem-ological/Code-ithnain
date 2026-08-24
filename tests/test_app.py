@@ -205,3 +205,58 @@ def test_first_free_port_gives_up_on_a_full_span():
         a.listen(1)
         port = a.getsockname()[1]
         assert web._first_free_port("127.0.0.1", port, span=1) is None
+
+
+# --- LAN token gate ---------------------------------------------------------
+
+@pytest.fixture
+def gated():
+    web.app.state.demo = True
+    web.app.state.token = "s3cret-token"
+    client = TestClient(web.app)
+    yield client
+    web.app.state.token = None
+
+
+def test_localhost_mode_has_no_token_and_no_gate(client):
+    assert web.app.state.token is None
+    assert client.get("/api/status").status_code == 200
+
+
+@pytest.mark.parametrize("path", ["/", "/api/status", "/api/models", "/static/index.html"])
+def test_every_route_is_gated(gated, path):
+    assert gated.get(path).status_code == 401
+
+
+def test_wrong_token_is_rejected(gated):
+    assert gated.get("/?token=wrong").status_code == 401
+    assert gated.get("/api/status", headers={"X-Auth-Token": "wrong"}).status_code == 401
+
+
+def test_token_accepted_from_query_and_header(gated):
+    assert gated.get("/?token=s3cret-token").status_code == 200
+    assert gated.get("/api/status", headers={"X-Auth-Token": "s3cret-token"}).status_code == 200
+
+
+def test_query_token_sets_a_cookie_so_reloads_work(gated):
+    """Regression: the browser issues the document request and cannot add a header."""
+    response = gated.get("/?token=s3cret-token")
+    assert response.cookies.get("yta_token") == "s3cret-token"
+    # the client now holds the cookie; a bare reload must succeed
+    assert gated.get("/").status_code == 200
+
+
+def test_header_only_request_does_not_set_a_cookie(gated):
+    response = gated.get("/api/status", headers={"X-Auth-Token": "s3cret-token"})
+    assert "yta_token" not in response.cookies
+
+
+def test_post_is_gated_too(gated):
+    assert gated.post("/api/analyze", json={"url": "x"}).status_code == 401
+    ok = gated.post("/api/analyze", json={"url": "x"}, headers={"X-Auth-Token": "s3cret-token"})
+    assert ok.status_code == 200
+
+
+def test_lan_ip_returns_something_routable():
+    ip = web._lan_ip()
+    assert ip.count(".") == 3

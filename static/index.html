@@ -150,6 +150,23 @@ footer{text-align:center;color:var(--muted);font-size:12px;margin-top:34px}
 const $ = id => document.getElementById(id);
 let lastPayload = null;
 
+/* In LAN mode the server issues a token, delivered in the opening link. Keep it
+   for this tab and send it on every request, so a reload or an in-page fetch
+   does not 401. sessionStorage is per-tab and cleared when the tab closes. */
+const TOKEN = (() => {
+  const fromUrl = new URLSearchParams(location.search).get("token");
+  try {
+    if (fromUrl) { sessionStorage.setItem("yta_token", fromUrl); return fromUrl; }
+    return sessionStorage.getItem("yta_token") || "";
+  } catch { return fromUrl || ""; }
+})();
+
+function api(path, options){
+  const opts = options || {};
+  opts.headers = Object.assign({}, opts.headers, TOKEN ? {"X-Auth-Token": TOKEN} : {});
+  return fetch(path, opts);
+}
+
 /* Every value below originates from a transcript an uploader controls, so it is
    inserted with textContent. Nothing here ever touches innerHTML. */
 function el(tag, cls, text){
@@ -332,7 +349,7 @@ $("form").addEventListener("submit", async e => {
   let slow = setTimeout(() => $("statusText").textContent = "Analyzing with Gemini — this can take up to a minute…", 4000);
 
   try{
-    const res = await fetch("/api/analyze", {
+    const res = await api("/api/analyze", {
       method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify(body),
     });
     const data = await res.json();
@@ -357,7 +374,7 @@ $("form").addEventListener("submit", async e => {
 
 /* Model names are fetched live: Google retires them on its own schedule, and a
    hardcoded list goes stale without warning. */
-fetch("/api/models").then(r => r.json()).then(d => {
+api("/api/models").then(r => r.json()).then(d => {
   const sel = $("model");
   const dflt = d.default || "";
   sel.replaceChildren(el("option", null, dflt ? "Default (" + dflt + ")" : "Default"));
@@ -370,7 +387,7 @@ fetch("/api/models").then(r => r.json()).then(d => {
   }
 }).catch(() => {});
 
-fetch("/api/status").then(r => r.json()).then(s => {
+api("/api/status").then(r => r.json()).then(s => {
   if (s.demo){
     $("demoBadge").hidden = false;
     $("url").value = "https://www.youtube.com/live/6lnGZmAf61A";

@@ -119,6 +119,28 @@ python app.py --demo
 
 Other flags: `--port 9000`, `--no-browser`, `--host`.
 
+### From your phone
+
+```bash
+python app.py --lan
+```
+
+Prints a QR code and a link. Scan it, or type the `http://192.168.x.x:PORT/?token=...`
+address shown. Both devices must be on the same Wi-Fi, and on the first run
+Windows asks whether to allow Python through the firewall — choose **Private
+networks**.
+
+`--lan` binds to all interfaces, so the app becomes reachable by every device on
+that network. Because it has no login and holds your API key, LAN mode requires
+a token: a random secret generated at startup, carried in the link, checked on
+every request, and stored as a cookie so reloads work without re-scanning. It
+changes each restart, and other devices without it get a 401.
+
+That is enough for a home network. It is not enough for public Wi-Fi — a token
+in a URL is a shared secret over plain HTTP, so anyone who sees the link, or
+captures the traffic, can spend your API quota. Don't use `--lan` on a network
+you don't control.
+
 The page shows the summary, takeaways, highlights, insights and caveats, plus a
 prompt-injection panel. Highlight timestamps are links that open the video at
 that exact second. **Download JSON** / **Copy JSON** give you the raw result.
