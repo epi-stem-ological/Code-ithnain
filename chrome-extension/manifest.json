@@ -1,0 +1,25 @@
+{
+  "manifest_version": 3,
+  "name": "YouTube Agent Engine",
+  "version": "1.0",
+  "description": "Analyze YouTube videos with AI - get summaries, takeaways, highlights, and insights",
+  "permissions": [
+    "activeTab",
+    "scripting",
+    "tabs"
+  ],
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "Analyze this video"
+  },
+  "content_scripts": [
+    {
+      "matches": ["*://www.youtube.com/*", "*://youtu.be/*"],
+      "js": ["content.js"]
+    }
+  ],
+  "host_permissions": [
+    "http://127.0.0.1:8000/*",
+    "http://localhost:8000/*"
+  ]
+}

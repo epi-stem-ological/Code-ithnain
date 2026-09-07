@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      width: 380px;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: #f8f9fa;
+      color: #333;
+    }
+    .container {
+      padding: 16px;
+    }
+    h1 {
+      font-size: 16px;
+      font-weight: 600;
+      margin-bottom: 12px;
+      color: #1a1a1a;
+    }
+    .status {
+      font-size: 13px;
+      padding: 8px 12px;
+      border-radius: 6px;
+      margin-bottom: 12px;
+      display: none;
+    }
+    .status.error {
+      background: #fee;
+      color: #c33;
+      display: block;
+    }
+    .status.success {
+      background: #efe;
+      color: #3c3;
+      display: block;
+    }
+    .status.info {
+      background: #eef;
+      color: #36c;
+      display: block;
+    }
+    .input-group {
+      margin-bottom: 12px;
+    }
+    label {
+      display: block;
+      font-size: 12px;
+      font-weight: 500;
+      margin-bottom: 4px;
+      color: #666;
+    }
+    input, textarea, select {
+      width: 100%;
+      padding: 8px 10px;
+      font-size: 13px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      font-family: inherit;
+    }
+    textarea {
+      resize: vertical;
+      min-height: 60px;
+    }
+    input:focus, textarea:focus, select:focus {
+      outline: none;
+      border-color: #36c;
+      box-shadow: 0 0 0 2px rgba(51, 102, 204, 0.1);
+    }
+    .button-group {
+      display: flex;
+      gap: 8px;
+    }
+    button {
+      flex: 1;
+      padding: 10px 12px;
+      font-size: 13px;
+      font-weight: 500;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .btn-analyze {
+      background: #36c;
+      color: white;
+    }
+    .btn-analyze:hover {
+      background: #2580cc;
+    }
+    .btn-analyze:disabled {
+      background: #ccc;
+      cursor: not-allowed;
+    }
+    .btn-settings {
+      background: #f0f0f0;
+      color: #333;
+    }
+    .btn-settings:hover {
+      background: #e0e0e0;
+    }
+    .server-status {
+      font-size: 12px;
+      padding: 8px 10px;
+      background: #f5f5f5;
+      border-radius: 4px;
+      margin-top: 12px;
+      text-align: center;
+      color: #666;
+    }
+    .loading {
+      display: none;
+      text-align: center;
+      padding: 12px;
+      font-size: 13px;
+    }
+    .loading.show {
+      display: block;
+    }
+    .spinner {
+      display: inline-block;
+      width: 14px;
+      height: 14px;
+      border: 2px solid #ddd;
+      border-top-color: #36c;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      margin-right: 6px;
+    }
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🎬 YouTube Agent Engine</h1>
+
+    <div id="status" class="status"></div>
+
+    <div class="input-group">
+      <label>Video URL</label>
+      <input id="url" type="url" placeholder="Current YouTube video will auto-fill" />
+    </div>
+
+    <div class="input-group">
+      <label>Task (optional)</label>
+      <textarea id="task" placeholder="Leave blank for default summary, or ask for anything: 'Extract key quotes', 'List action items', etc."></textarea>
+    </div>
+
+    <div class="input-group">
+      <label>Model</label>
+      <select id="model">
+        <option value="">Loading models...</option>
+      </select>
+    </div>
+
+    <div class="button-group">
+      <button class="btn-analyze" id="analyze">Analyze</button>
+      <button class="btn-settings" id="settings">Settings</button>
+    </div>
+
+    <div id="loading" class="loading">
+      <span class="spinner"></span>Analyzing video...
+    </div>
+
+    <div id="serverStatus" class="server-status">
+      Checking for local server...
+    </div>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>
